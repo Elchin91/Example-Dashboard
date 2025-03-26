@@ -1,0 +1,12 @@
+{
+  "database": {
+    "user": "pashapay",
+    "password": "Q1w2e3r4!@#",
+    "host": "192.168.46.4",
+    "port": "3306",
+    "name": "report"
+  },
+  "server": {
+    "port": "5000"
+  }
+}

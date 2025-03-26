@@ -1,0 +1,2568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Highcharts -->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/export-data.js"></script>
+  <!-- XLSX (для экспорта в Excel) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" />
+  <!-- DataTables -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <!-- ExcelJS -->
+  <script src="https://unpkg.com/exceljs/dist/exceljs.min.js"></script>
+  <!-- В head добавляем ссылку на forecast.js -->
+  <script src="/js/forecast.js"></script>
+
+  <link rel="stylesheet" href="/css/dashboard.css">
+
+  <style>
+    :root {
+      /* Light theme variables */
+      --bg-color: #ffffff;
+      --text-color: #000000;
+      --sidebar-bg: #03edc3;
+      --content-bg: rgba(255, 255, 255, 0.7);
+      --table-border: #dee2e6;
+      --table-text: #000000;
+      --highlight-color: rgba(3, 237, 195, 0.1);
+    }
+
+    [data-theme="dark"] {
+      /* Dark theme variables */
+      --bg-color: #1a1a1a;
+      --text-color: #ffffff;
+      --sidebar-bg: #1f4d46;
+      --content-bg: rgba(33, 33, 33, 0.9);
+      --table-border: #ffffff;
+      --table-text: #ffffff;
+      --highlight-color: rgba(3, 237, 195, 0.2);
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    /* Updated Glassmorphism styles for sidebar and content */
+    #sidebar {
+      background: var(--sidebar-bg); /* updated to use CSS variable */
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: none; /* remove border for glass effect */
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      width: 250px;
+      min-width: 250px;
+      height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+      position: sticky;
+      top: 0;
+      left: 0;
+      overflow-y: auto;
+      z-index: 1000;
+      position: relative;
+      padding-bottom: 240px; /* Add padding at bottom to ensure content doesn't overlap with logo */
+    }
+    #content {
+      background: var(--content-bg); /* updated to use CSS variable */
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border-radius: 10px;
+      padding: 20px;
+      flex: 1;
+      min-width: 0;
+      margin-left: 10px;
+      margin-right: 10px;
+      overflow-x: auto;
+      min-width: 1000px; /* Минимальная ширина контента */
+    }
+    .tab-link {
+  display: block;               /* каждая вкладка — отдельный блок */
+  width: fit-content;           /* ширина под контент */
+  margin: 8px auto;             /* отступы сверху/снизу + выравнивание по центру */
+  padding: 8px 20px;
+  border: 2px solid #000;       /* чёрная рамка */
+  border-radius: 9999px;        /* большое скругление для «пилюли» */
+  background-color: #fff;       /* белый фон */
+  color: #000;                  /* чёрный текст */
+  text-align: center;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.tab-link:hover {
+  background-color: #f0f0f0;    /* лёгкая заливка при наведении */
+}
+
+.tab-link.active {
+  background-color: #000;       /* активная вкладка – чёрный фон */
+  color: #fff;                  /* и белый текст */
+}
+    .view-switch {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .view-switch button {
+  border: none;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  margin: 0 10px;
+}
+.view-switch button.active {
+  font-weight: bold;
+  text-decoration: underline;
+}
+    .table-container {
+      margin-top: 15px;
+      overflow-x: auto;
+    }
+    .table-bordered th,
+    .table-bordered td {
+      text-align: center;
+    }
+    .table-bordered,
+    .table-bordered th,
+    .table-bordered td {
+      border: 1px solid var(--table-border) !important; /* updated to use CSS variable */
+    }
+    .table-bordered thead th {
+      text-align: center !important;
+    }
+    /* Блоки "онлайн"-метрик */
+    #online-stats {
+      text-align: center;
+      margin-top: 30px;
+    }
+    .online-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .online-block {
+      width: 300px;
+      height: 120px;
+      margin: 20px;
+      border-radius: 5px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+    .online-block h3 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .online-block .online-value {
+      font-size: 32px;
+    }
+    #logo-container {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 20px;
+      margin-top: 0;
+    }
+    /* New style for left navigation section titles */
+    .nav-title {
+      background: linear-gradient(135deg, rgba(3, 247, 247, 0.3), rgba(23, 2, 255, 0.1));
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    /* Enable text selection on all table cells by default */
+table td, table th {
+  user-select: text;
+}
+/* Разрешаем выделять только в «подсвеченных» ячейках */
+.selectable {
+  user-select: text !important;
+  background-color: var(--highlight-color); /* updated to use CSS variable */
+}
+    /* Re-enable selection for cells in the selected column */
+    .selectable {
+      user-select: text !important;
+      background-color: var(--highlight-color); /* updated to use CSS variable */
+    }
+    /* Table selection styles */
+    table td, 
+    table th {
+      user-select: none;  /* Disable selection by default */
+    }
+    
+    table td.selectable, 
+    table th.selectable {
+      user-select: text;  /* Enable selection for highlighted cells */
+      background-color: var(--highlight-color); /* updated to use CSS variable */
+    }
+    
+    /* Optional: show cursor pointer on clickable cells */
+    table td:hover, 
+    table th:hover {
+      cursor: pointer;
+    }
+
+    /* Theme toggle button styles */
+    .theme-toggle {
+  /* Удаляем фиксацию */
+  /* position: fixed;
+     bottom: 80px;
+     left: 20px; */
+
+  display: block;
+  width: 100%;
+  max-width: 210px;
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 20px;
+  border: 2px solid var(--text-color);
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+/* Add table-specific dark theme styles */
+.table {
+  color: var(--table-text);
+}
+
+.table-bordered,
+.table-bordered th,
+.table-bordered td {
+  border-color: var(--table-border) !important;
+}
+
+/* Dark theme for DataTables */
+[data-theme="dark"] .dataTables_wrapper .dataTables_length,
+[data-theme="dark"] .dataTables_wrapper .dataTables_filter,
+[data-theme="dark"] .dataTables_wrapper .dataTables_info,
+[data-theme="dark"] .dataTables_wrapper .dataTables_processing,
+[data-theme="dark"] .dataTables_wrapper .dataTables_paginate {
+  color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+  color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+  color: #666 !important;
+}
+
+/* Add styles for multiple selection */
+.selectable.multi-select {
+  background-color: var(--highlight-color);
+  user-select: text !important;
+}
+
+/* Фиксированная ширина боковой панели в «большом» режиме */
+#sidebar {
+  width: 250px;       /* фиксированная ширина */
+  min-width: 250px;   /* чтобы не сжималось */
+  flex-shrink: 0;     /* запрет сжимать при зуме */
+  overflow-y: auto;   /* прокрутка, если контента много */
+  box-sizing: border-box;
+}
+
+/* При маленьком экране или сильном зуме панель уходит наверх */
+@media (max-width: 1200px) {
+  body {
+    flex-direction: column;
+  }
+
+  #sidebar {
+    width: 100%;
+    min-width: 0;       
+    position: static;   
+    height: auto;
+    overflow-y: visible; 
+    margin-bottom: 10px; 
+  }
+
+  #content {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  #logo-container {
+    position: relative;
+    bottom: auto;
+    margin-top: 20px;
+  }
+}
+
+/* Добавляем стиль для view-tab */
+.view-tab {
+  display: inline-block;
+  margin: 0 5px;
+}
+
+/* Стиль для основных переключателей режимов */
+.view-tab.tab-link {
+  background: linear-gradient(135deg, rgba(3, 247, 247, 0.3), rgba(23, 2, 255, 0.1));
+  border-radius: 8px;
+  padding: 12px 24px;  /* увеличенный padding */
+  font-size: 18px;     /* увеличенный размер шрифта */
+  font-weight: 600;
+  color: #ffffff !important;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  margin: 0 5px;
+  text-align: center;
+  display: inline-block;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  width: auto;        /* автоматическая ширина */
+  min-width: 120px;   /* минимальная ширина */
+}
+
+.view-tab.tab-link:hover {
+  background: linear-gradient(135deg, rgba(3, 247, 247, 0.4), rgba(23, 2, 255, 0.2));
+  color: #ffffff !important;
+  text-decoration: none;
+}
+
+.view-tab.tab-link.active {
+  background: linear-gradient(135deg, rgba(3, 247, 247, 0.5), rgba(23, 2, 255, 0.3));
+  color: #ffffff !important;
+  text-decoration: none;
+}
+
+/* Add zoom controls */
+#zoom-controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: var(--content-bg);
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.zoom-btn {
+  margin: 0 5px;
+  padding: 5px 10px;
+  border: none;
+  background: var(--sidebar-bg);
+  color: var(--text-color);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.zoom-btn:hover {
+  opacity: 0.8;
+}
+
+/* Add to existing styles */
+#zoom-percent {
+  margin: 0 10px;
+  min-width: 50px;
+  display: inline-block;
+  text-align: center;
+}
+
+/* Update view button styles to be more visible when active */
+.tab-link.active {
+  background-color: #000;
+  color: #fff;
+  font-weight: bold;
+}
+
+#view-daily.active,
+#view-hourly.active,
+#view-classifiers.active,
+#view-online.active {
+  background: linear-gradient(135deg, rgba(3, 247, 247, 0.8), rgba(23, 2, 255, 0.6));
+  color: #ffffff;
+  font-weight: bold;
+}
+
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="view-switch" style="display: flex; flex-direction: column; align-items: center;">
+      <div style="text-align: center;">
+        <div class="nav-title">Dashboard</div>
+        <!-- Стек кнопок (вертикально) -->
+        <button id="view-daily" class="tab-link active">Daily</button>
+        <button id="view-hourly" class="tab-link">Hourly</button>
+        <button id="view-classifiers" class="tab-link">Classifiers</button>
+        <button id="view-online" class="tab-link">Online</button>
+      </div>
+    </div>
+
+    <div class="nav-title">METRICS</div>
+    <div id="metrics-block">
+      <!-- Блок стандартных метрик -->
+      <div id="metrics-default">
+        <a class="tab-link active" data-tab="calls">Calls</a>
+        <a class="tab-link" data-tab="aht">AHT</a>
+        <a class="tab-link" data-tab="sl">SL</a>
+        <a class="tab-link" data-tab="chats">Chats</a>
+        <a class="tab-link" data-tab="frt">FRT</a>
+        <a class="tab-link" data-tab="rt">RT</a>
+        <a class="tab-link" data-tab="abandoned">Abandoned</a>
+        <a class="tab-link" data-tab="total">Total</a>
+        <a class="tab-link" data-tab="detailed_daily">Detailed daily</a>
+        <a class="tab-link" data-tab="forecast">Forecast</a>
+        <a class="tab-link" data-tab="forecast_daily">Forecast (daily)</a>
+      </div>
+
+      <!-- Блок метрик для Classifiers (изначально скрыт) -->
+      <div id="metrics-classifiers" style="display: none;">
+        <a class="tab-link" data-tab="call_classif">Call</a>
+        <a class="tab-link" data-tab="chat_classif">Chat</a>
+        <a class="tab-link" data-tab="overall_classif">Overall</a>
+        <a class="tab-link" data-tab="topics_classif">Topics</a>
+        <a class="tab-link" data-tab="subtopics_classif">Subtopics (by Topics)</a>
+      </div>
+    </div>
+
+<!-- ... внутри вашего #sidebar, сразу после кнопки Apply: -->
+<hr />
+<label for="start-date">Start Date:</label>
+<input type="date" id="start-date" class="form-control" />
+<label for="end-date" class="mt-2">End Date:</label>
+<input type="date" id="end-date" class="form-control" />
+
+<!-- ... -->
+<button id="apply-filters" class="btn btn-primary mt-3">Apply</button>
+
+<!-- Кнопка темы сразу под Apply -->
+<button class="theme-toggle" id="theme-toggle">
+  🌓 Night mode
+</button>
+<!-- NEW: Refresh button for desktop update -->
+<button class="theme-toggle" id="refresh-btn" style="display:none; margin-top:10px;">
+  &#x21bb; Refresh
+</button>
+
+<!-- Удалите дублирование и лишний текст, оставив один корректный блок логотипа -->
+<div id="logo-container" style="text-align: center; margin-top: 40px;">
+  <img src="https://static.tildacdn.one/tild6263-6436-4064-b637-633061366565/M10.svg" alt="Logo" style="width: 200px; height: auto;">
+</div>
+
+  </div>
+
+  <div id="content">
+    <!-- График (Daily/Hourly) -->
+    <div id="chart-container" style="width: 100%; height: 500px;"></div>
+    <div id="data-table-container" class="table-container"></div>
+
+    <!-- Блок "Classifiers" (по умолчанию скрыт) -->
+    <div id="classifiers-container" style="display: none; margin-top: 20px;">
+      <!-- Здесь будут появляться таблицы, select и т.д. -->
+    </div>
+
+    <!-- Блоки "онлайн"-статистики (по умолчанию скрыты) -->
+    <div id="online-stats" style="display: none;">
+      <div class="online-row">
+        <div class="online-block" id="block-calls" style="background-color: #f44336;">
+          <h3>CALLS</h3>
+          <div class="online-value" id="online-calls">0</div>
+        </div>
+        <div class="online-block" id="block-abandoned" style="background-color: #9c27b0;">
+          <h3>ABANDONED</h3>
+          <div class="online-value" id="online-abandoned">0</div>
+        </div>
+        <div class="online-block" id="block-waiting" style="background-color: #e91e63;">
+          <h3>WAITING</h3>
+          <div class="online-value" id="online-waiting">0</div>
+        </div>
+        <div class="online-block" id="block-aht" style="background-color: #2196f3;">
+          <h3>AHT</h3>
+          <div class="online-value" id="online-aht">0</div>
+        </div>
+        <div class="online-block" id="block-sl" style="background-color: #ff9800;">
+          <h3>SL</h3>
+          <div class="online-value" id="online-sl">0</div>
+        </div>
+      </div>
+      <div class="online-row">
+        <div class="online-block" id="block-chats" style="background-color: #009688;">
+          <h3>CHATS</h3>
+          <div class="online-value" id="online-chats">0</div>
+        </div>
+        <div class="online-block" id="block-frt" style="background-color: #3f51b5;">
+          <h3>FRT</h3>
+          <div class="online-value" id="online-frt">0</div>
+        </div>
+        <div class="online-block" id="block-rt" style="background-color: #795548;">
+          <h3>RT</3>
+          <div class="online-value" id="online-rt">0</div>
+        </div>
+        <div class="online-block" id="block-active" style="background-color: #607d8b;">
+          <h3>ACTIVE</h3>
+          <div class="online-value" id="online-active">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replace existing zoom controls div with: -->
+  <div id="zoom-controls">
+    <button class="zoom-btn" onclick="zoomOut()">-</button>
+    <span id="zoom-percent">100%</span>
+    <button class="zoom-btn" onclick="resetZoom()">Reset</button>
+    <button class="zoom-btn" onclick="zoomIn()">+</button>
+  </div>
+
+  <script>
+    // Metric configuration object
+const metricConfig = {
+  calls: {
+    field: "total_calls",
+    transform: (value) => value || 0,
+    title: "Calls",
+    isAverage: false,
+  },
+  aht: {
+    field: "avg_call_duration",
+    transform: (value) => Math.round(parseFloat(value) / 60),
+    title: "AHT (Target - 1 min.)",
+    isAverage: true,
+  },
+  sl: {
+    field: "sl",
+    transform: (value) => Math.round(parseFloat(value)),
+    title: "SL (Target - 95%)",
+    isAverage: true,
+  },
+  chats: {
+    field: "total_chats",
+    transform: (value) => value || 0,
+    title: "Chats",
+    isAverage: false,
+  },
+  frt: {
+    field: "avg_chat_frt",
+    transform: (value) => Math.round(parseFloat(value) / 60),
+    title: "FRT (Target - 5 min.)",
+    isAverage: true,
+  },
+  rt: {
+    field: "resolution_time_avg",
+    transform: (value) => Math.round(parseFloat(value) / 60),
+    title: "RT (Target - 10 min.)",
+    isAverage: true,
+  },
+  abandoned: {
+    field: "total_abandoned",
+    transform: (value) => value || 0,
+    title: "Abandoned (Target - 3%)",
+    isAverage: false,
+  },
+};
+
+    // Светлая тема
+const lightChartTheme = {
+  chart: {
+    backgroundColor: '#ffffff',
+    style: {
+      fontFamily: 'Verdana, sans-serif',
+      color: '#000000'
+    },
+    plotBorderColor: '#C0C0C0'
+  },
+  colors: ['#7cb5ec', '#434348', '#90ed7d', '#f7a35c', '#8085e9', '#f15c80', '#e4d354', '#2b908f', '#f45b5b', '#91e8e1'],
+  title: {
+    style: {
+      color: '#000'
+    }
+  },
+  subtitle: {
+    style: {
+      color: '#666'
+    }
+  },
+  xAxis: {
+    gridLineColor: '#e6e6e6',
+    lineColor: '#000',
+    minorGridLineColor: '#f2f2f2',
+    tickColor: '#000',
+    labels: {
+      style: {
+        color: '#000'
+      }
+    },
+    title: {
+      style: {
+        color: '#333'
+      }
+    }
+  },
+  yAxis: {
+    gridLineColor: '#e6e6e6',
+    labels: {
+      style: {
+        color: '#000'
+      }
+    },
+    title: {
+      style: {
+        color: '#333'
+      }
+    }
+  },
+  tooltip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    style: {
+      color: '#000'
+    }
+  },
+  legend: {
+    itemStyle: {
+      color: '#000'
+    },
+    itemHoverStyle: {
+      color: '#555'
+    },
+    itemHiddenStyle: {
+      color: '#ccc'
+    }
+  },
+  credits: {
+    style: {
+      color: '#999'
+    }
+  }
+};
+
+// Тёмная тема
+const darkChartTheme = {
+  chart: {
+    backgroundColor: '#2c2c2c',
+    style: {
+      fontFamily: 'Verdana, sans-serif',
+      color: '#FFFFFF'
+    },
+    plotBorderColor: '#606063'
+  },
+  colors: ['#7cb5ec', '#f45b5b', '#90ed7d', '#8085e9', '#f7a35c', '#2b908f', '#f15c80', '#e4d354', '#91e8e1', '#434348'],
+  title: {
+    style: {
+      color: '#FFF'
+    }
+  },
+  subtitle: {
+    style: {
+      color: '#DDD'
+    }
+  },
+  xAxis: {
+    gridLineColor: '#505053',
+    lineColor: '#707073',
+    minorGridLineColor: '#505053',
+    tickColor: '#707073',
+    labels: {
+      style: {
+        color: '#FFF'
+      }
+    },
+    title: {
+      style: {
+        color: '#A0A0A3'
+      }
+    }
+  },
+  yAxis: {
+    gridLineColor: '#505053',
+    labels: {
+      style: {
+        color: '#FFF'
+      }
+    },
+    title: {
+      style: {
+        color: '#A0A0A3'
+      }
+    }
+  },
+  tooltip: {
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    style: {
+      color: '#F0F0F0'
+    }
+  },
+  legend: {
+    itemStyle: {
+      color: '#FFF'
+    },
+    itemHoverStyle: {
+      color: '#FFF'
+    },
+    itemHiddenStyle: {
+      color: '#666'
+    }
+  },
+  credits: {
+    style: {
+      color: '#666'
+    }
+  }
+};
+
+    let currentView = "daily";
+    let onlineInterval = null;
+
+    // Функция для отрисовки таблицы под Highcharts (Daily/Hourly)
+    // UPDATED: change function signature to accept tab as third parameter
+function renderDataTable(chart, view, tab) {
+  const averageMetrics = ["aht", "sl", "frt", "rt"];
+
+  // Skip generating summaries for abandoned tab since loadChartData handles it completely
+  if (tab === "abandoned") {
+    return;
+  }
+
+  if (view === 'hourly') {
+    const startDate = $("#start-date").val();
+    const endDate = $("#end-date").val();
+    if (startDate === endDate) {
+      const rows = chart.getDataRows();
+      const hourlyValues = Array(24).fill(0);
+      rows.forEach(row => {
+        let hour = parseInt(row[0], 10);
+        if (!isNaN(hour) && hour >= 0 && hour < 24) {
+          hourlyValues[hour] = row[1] || 0;
+        }
+      });
+      const periodTotal = hourlyValues.reduce((acc, val) => acc + Number(val), 0);
+      let heading;
+      if (averageMetrics.includes(tab)) {
+        const avg = periodTotal / 24;
+        heading = `<div class="mb-3"><strong>Average for period: ${avg.toLocaleString("ru-RU", {maximumFractionDigits: 2})}</strong></div>`;
+      } else {
+        heading = `<div class="mb-3"><strong>Total for period: ${periodTotal.toLocaleString("ru-RU")}</strong></div>`;
+      }
+      let tableHTML = heading;
+      tableHTML += '<table class="table table-bordered">';
+      tableHTML += '<thead><tr>';
+      for (let h = 0; h < 24; h++) {
+        tableHTML += `<th>${h}:00</th>`;
+      }
+      tableHTML += '</tr></thead>';
+      tableHTML += '<tbody><tr>';
+      for (let h = 0; h < 24; h++) {
+        tableHTML += `<td>${Number(hourlyValues[h]).toLocaleString("ru-RU")}</td>`;
+      }
+      tableHTML += '</tr></tbody></table>';
+      $("#data-table-container").html(tableHTML);
+    } else {
+      $.getJSON(`/hourly/table/data/${tab}`, { start_date: startDate, end_date: endDate })
+  .done(function(data) {
+    // data — массив объектов, например:
+    // [
+    //   { report_date: "2025-03-19T00:00:00Z", hour: 0, total_abandoned: 1 },
+    //   { report_date: "2025-03-19T00:00:00Z", hour: 1, total_abandoned: 4 },
+    //   { report_date: "2025-03-20T00:00:00Z", hour: 0, total_abandoned: 12 },
+    //   ...
+    // ]
+
+    // 1) Собираем dataMap: { "19/03/2025": { 0: X, 1: Y, 2: Z, ... }, "20/03/2025": {...} }
+    const dataMap = {};
+
+    data.forEach(item => {
+      // Преобразуем report_date в формат DD/MM/YYYY
+      const dt = new Date(item.report_date);
+      // Например: "19/03/2025"
+      const dayKey = dt.toLocaleDateString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+
+      const hour = item.hour;
+      let value = 0;
+
+      // Подставляем нужное поле в зависимости от таба
+      if (tab === "calls") {
+        value = item.total_calls || 0;
+      } else if (tab === "aht") {
+        value = item.avg_call_duration || 0;
+      } else if (tab === "sl") {
+        value = item.sl || 0;
+      } else if (tab === "chats") {
+        value = item.total_chats || 0;
+      } else if (tab === "frt") {
+        value = item.avg_chat_frt || 0;
+      } else if (tab === "rt") {
+        value = item.resolution_time_avg || 0;
+      } else if (tab === "abandoned") {
+        value = item.total_abandoned || 0;
+      }
+
+      // Инициализируем объект под конкретный день
+      if (!dataMap[dayKey]) {
+        dataMap[dayKey] = {};
+      }
+      // Сохраняем значение в ячейку [dayKey][hour]
+      dataMap[dayKey][hour] = value;
+    });
+
+    // 2) Сортируем дни (dayKey) по возрастанию
+    const sortedDays = Object.keys(dataMap).sort((a, b) => {
+      const [dayA, monthA, yearA] = a.split("/");
+      const [dayB, monthB, yearB] = b.split("/");
+      return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+    });
+
+    // 3) Генерируем HTML-таблицу
+    let tableHTML = "<table class='table table-bordered'>";
+
+    // Шапка таблицы: первая колонка — "Day", далее часы 0..23
+    tableHTML += "<thead><tr><th>Day</th>";
+    for (let h = 0; h < 24; h++) {
+      tableHTML += `<th>${h}:00</th>`;
+    }
+    tableHTML += "</tr></thead>";
+
+    // Тело таблицы: одна строка на каждый dayKey
+    tableHTML += "<tbody>";
+    sortedDays.forEach(dayKey => {
+      tableHTML += `<tr><td>${dayKey}</td>`;
+      for (let h = 0; h < 24; h++) {
+        const val = dataMap[dayKey][h] || 0; // если нет данных, ставим 0
+        tableHTML += `<td>${val}</td>`;
+      }
+      tableHTML += "</tr>";
+    });
+    tableHTML += "</tbody></table>";
+
+    // 4) Вставляем готовую таблицу в контейнер
+    $("#data-table-container").html(tableHTML);
+  })
+  .fail(function(jqxhr, textStatus, error) {
+    console.error("Ошибка загрузки Hourly данных:", textStatus, error);
+    $("#data-table-container").html("Ошибка загрузки данных");
+  });
+
+    }
+  } else {
+    const rows = chart.getDataRows();
+    const dataMap = {};
+    let periodTotal = 0; // Initialize period total
+    rows.slice(1).forEach(row => {
+      const dt = new Date(row[0]);
+      const day = String(dt.getDate()).padStart(2, '0');
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const year = dt.getFullYear();
+      const key = `${day}.${month}.${year}`;
+      dataMap[key] = row[1] ?? 0;
+      periodTotal += Number(row[1] || 0);
+    });
+    const allKeys = Object.keys(dataMap).sort((a, b) => {
+      const [dayA, monthA, yearA] = a.split('.');
+      const [dayB, monthB, yearB] = b.split('.');
+      return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+    });
+    let heading;
+    if (averageMetrics.includes(tab)) {
+      const avg = periodTotal / allKeys.length;
+      heading = '<div class="mb-3"><strong>Average for period: ' + avg.toLocaleString('ru-RU', {maximumFractionDigits: 2}) + '</strong></div>';
+    } else {
+      heading = '<div class="mb-3"><strong>Total for period: ' + periodTotal.toLocaleString('ru-RU') + '</strong></div>';
+    }
+    let tableHTML = heading;
+    tableHTML += '<table class="table table-bordered">';
+    tableHTML += '<thead><tr>';
+    allKeys.forEach(key => { tableHTML += `<th>${key}</th>`; });
+    tableHTML += '</tr></thead>';
+    tableHTML += '<tbody><tr>';
+    allKeys.forEach(key => { tableHTML += `<td>${Number(dataMap[key]).toLocaleString('ru-RU')}</td>`; });
+    tableHTML += '</tr></tbody></table>';
+    $("#data-table-container").html(tableHTML);
+  }
+}
+
+    // Функция для загрузки графика (Daily/Hourly/Detailed)
+    function loadChartData(view, tab, startDate, endDate) {
+      if (tab !== "detailed_daily") {
+        $("#classifiers-container").hide();
+        $("#chart-container, #data-table-container").show();
+      }
+      
+      // NEW: Special branch for "abandoned" tab to show percentage relative to Calls
+      if (tab === "abandoned") {
+        const params = { start_date: startDate, end_date: endDate };
+        $.when(
+          $.getJSON(`/${view}/data/abandoned`, params),
+          $.getJSON(`/${view}/data/calls`, params)
+        ).done(function(abandonedResp, callsResp) {
+          const abandonedData = abandonedResp[0];
+          const callsData = callsResp[0];
+          let totalAbandoned = 0;
+          let totalCalls = 0;
+
+          const seriesData = abandonedData.map(item => {
+            const key = (view === "hourly") ? item.hour : item.report_date;
+            const abandonedCount = item.total_abandoned || 0;
+            const callsCount = callsData.find(c => 
+              (view === "hourly" ? c.hour : c.report_date) === key
+            )?.total_calls || 0;
+            
+            totalAbandoned += abandonedCount;
+            totalCalls += callsCount;
+            
+            const percent = callsCount ? (abandonedCount / callsCount * 100) : 0;
+            return { name: key, y: abandonedCount, percentage: percent };
+          });
+
+          const avgPercentage = totalCalls ? ((totalAbandoned / totalCalls) * 100).toFixed(1) : 0;
+          const averageAbandoned = seriesData.length ? (totalAbandoned / seriesData.length).toFixed(2) : 0;
+
+          const chart = Highcharts.chart("chart-container", {
+            chart: { type: "column" },
+            title: { text: "Abandoned (Target - 3%)" },
+            xAxis: {
+              type: "category",
+              title: { text: view === "hourly" ? "Hour" : "Date" },
+              labels: {
+                formatter: function() {
+                  if (view === "hourly") {
+                    return this.value + ":00";
+                  } else {
+                    const date = new Date(this.value);
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    return `${day}.${month}.${year}`;
+                  }
+                }
+              }
+            },
+            yAxis: { title: { text: "Value" } },
+            series: [{
+              name: "Abandoned",
+              data: seriesData,
+              dataLabels: {
+                enabled: true,
+                formatter: function() { 
+                  return this.point.y + " | " + this.point.percentage.toFixed(0) + "%";
+                }
+              }
+            }]
+          });
+
+          // Create complete abandoned summary
+          let summaryHTML = '<div class="mt-3 mb-3">';
+          summaryHTML += `<strong>Total for period: ${totalAbandoned}</strong> | `;
+          summaryHTML += `<strong>Average for period: ${averageAbandoned}</strong> | `;
+          summaryHTML += `<strong>Average rate for period: ${avgPercentage}%</strong>`;
+          summaryHTML += '</div>';
+          
+          // Generate table HTML directly here instead of using renderDataTable 
+          if (view === 'hourly') {
+            // Modified: Use hourly/table/data to get data formatted by day
+            $.getJSON(`/hourly/table/data/${tab}`, params)
+              .done(function(data) {
+                // Group data by day
+                const dataMap = {};
+                data.forEach(item => {
+                  const dt = new Date(item.report_date);
+                  const dayKey = dt.toLocaleDateString("en-GB", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit"
+                  });
+                  
+                  const hour = item.hour;
+                  const value = item.total_abandoned || 0;
+                  
+                  if (!dataMap[dayKey]) {
+                    dataMap[dayKey] = {};
+                  }
+                  dataMap[dayKey][hour] = value;
+                });
+                
+                // Sort days by date
+                const sortedDays = Object.keys(dataMap).sort((a, b) => {
+                  const [dayA, monthA, yearA] = a.split("/");
+                  const [dayB, monthB, yearB] = b.split("/");
+                  return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+                });
+                
+                // Generate HTML table
+                let tableHTML = summaryHTML + "<table class='table table-bordered'>";
+                
+                // Table header
+                tableHTML += "<thead><tr><th>Day</th>";
+                for (let h = 0; h < 24; h++) {
+                  tableHTML += `<th>${h}:00</th>`;
+                }
+                tableHTML += "</tr></thead>";
+                
+                // Table body
+                tableHTML += "<tbody>";
+                sortedDays.forEach(dayKey => {
+                  tableHTML += `<tr><td>${dayKey}</td>`;
+                  for (let h = 0; h < 24; h++) {
+                    tableHTML += `<td>${dataMap[dayKey][h] || 0}</td>`;
+                  }
+                  tableHTML += "</tr>";
+                });
+                tableHTML += "</tbody></table>";
+                
+                $("#data-table-container").html(tableHTML);
+              })
+              .fail(function(jqxhr, textStatus, error) {
+                console.error("Error loading hourly data for abandoned:", textStatus, error);
+                $("#data-table-container").html("Error loading data");
+              });
+          } else {
+            const rows = chart.getDataRows();
+            const dataMap = {};
+            rows.slice(1).forEach(row => {
+              const dt = new Date(row[0]);
+              const day = String(dt.getDate()).padStart(2, '0');
+              const month = String(dt.getMonth() + 1).padStart(2, '0');
+              const year = dt.getFullYear();
+              const key = `${day}.${month}.${year}`;
+              dataMap[key] = row[1] ?? 0;
+            });
+            const allKeys = Object.keys(dataMap).sort((a, b) => {
+              const [dayA, monthA, yearA] = a.split('.');
+              const [dayB, monthB, yearB] = b.split('.');
+              return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+            });
+            
+            let tableHTML = summaryHTML;
+            tableHTML += '<table class="table table-bordered">';
+            tableHTML += '<thead><tr>';
+            allKeys.forEach(key => { tableHTML += `<th>${key}</th>`; });
+            tableHTML += '</tr></thead>';
+            tableHTML += '<tbody><tr>';
+            allKeys.forEach(key => { tableHTML += `<td>${Number(dataMap[key]).toLocaleString('ru-RU')}</td>`; });
+            tableHTML += '</tr></tbody></table>';
+            $("#data-table-container").html(tableHTML);
+          }
+        }).fail(function(jqxhr, textStatus, error) {
+          console.error("Failed to load abandoned or calls data:", textStatus, error);
+        });
+        return;
+      }
+      // Добавляем словарь для переименования заголовков графиков
+      const chartTitleMap = {
+        "sl": "SL (Target - 95%)",
+        "aht": "AHT (Target - 1 min.)",
+        "frt": "FRT (Target - 5 min.)",
+        "rt": "RT (Target - 10 min.)",
+        "abandoned": "Abandoned (Target - 3%)"
+      };
+
+      if (tab === "total") {
+        const params = { start_date: startDate, end_date: endDate };
+        $.when(
+          $.getJSON(`/${view}/data/calls`, params),
+          $.getJSON(`/${view}/data/chats`, params),
+          $.getJSON(`/detailed/daily/data`, params)
+        ).done(function(callsResponse, chatsResponse, agentsResponse) {
+          const callsData = callsResponse[0];
+          const chatsData = chatsResponse[0];
+          
+          // Only convert dates in daily view
+          if (view === "daily") {
+            callsData.forEach(item => {
+              if (item.report_date) {
+                item.report_date = new Date(item.report_date).toISOString().split("T")[0];
+              }
+            });
+            chatsData.forEach(item => {
+              if (item.report_date) {
+                item.report_date = new Date(item.report_date).toISOString().split("T")[0];
+              }
+            });
+          }
+          
+          const agentsData = agentsResponse[0];
+          const dataMap = {};
+          let periodTotalCalls = 0;
+          let periodTotalChats = 0;
+          let periodTotalAgents = 0; // New counter for agents
+          
+          // Process agent data to get one value per day
+          const agentsByDay = {};
+          if (agentsData) {
+            Object.keys(agentsData).forEach(date => {
+              const hourData = agentsData[date];
+              let maxAgentsForDay = 0;
+              
+              Object.keys(hourData).forEach(hour => {
+                if (hourData[hour].agents > maxAgentsForDay) {
+                  maxAgentsForDay = hourData[hour].agents;
+                }
+              });
+              
+              agentsByDay[date] = maxAgentsForDay;
+            });
+          }
+          
+          if (view === "hourly") {
+            // Process hourly data
+            let totalCalls = 0;
+            let totalChats = 0;
+            
+            const hourlyMap = {};
+            // Initialize hourly data with zeros for all 24 hours
+            for (let h = 0; h < 24; h++) {
+              hourlyMap[h] = { calls: 0, chats: 0 };
+            }
+            
+            // Add calls data
+            callsData.forEach(item => {
+              const hour = parseInt(item.hour, 10);
+              const calls = parseInt(item.total_calls || 0, 10);
+              if (!isNaN(hour) && hour >= 0 && hour < 24) {
+                hourlyMap[hour].calls += calls;
+                totalCalls += calls;
+              }
+            });
+            
+            // Add chats data
+            chatsData.forEach(item => {
+              const hour = parseInt(item.hour, 10);
+              const chats = parseInt(item.total_chats || 0, 10);
+              if (!isNaN(hour) && hour >= 0 && hour < 24) {
+                hourlyMap[hour].chats += chats;
+                totalChats += chats;
+              }
+            });
+            
+            // Create chart data and table
+            const callsSeries = [];
+            const chatsSeries = [];
+            const totalSeries = [];
+            
+            for (let hour = 0; hour < 24; hour++) {
+              callsSeries.push([hour, hourlyMap[hour].calls]);
+              chatsSeries.push([hour, hourlyMap[hour].chats]);
+              totalSeries.push([hour, hourlyMap[hour].calls + hourlyMap[hour].chats]);
+            }
+            
+            // Create chart with data labels
+            Highcharts.chart("chart-container", {
+              chart: { type: "column" },
+              title: { text: "Total (Hourly)" },
+              xAxis: {
+                type: "category",
+                title: { text: "Hour" },
+                labels: {
+                  formatter: function() {
+                    return this.value + ":00";
+                  }
+                }
+              },
+              yAxis: { title: { text: "Value" } },
+              series: [
+                { 
+                  name: "Calls", 
+                  data: callsSeries,
+                  dataLabels: {
+                    enabled: true,
+                    inside: false,
+                    formatter: function() { return Math.round(this.y); }
+                  }
+                },
+                { 
+                  name: "Chats", 
+                  data: chatsSeries,
+                  dataLabels: {
+                    enabled: true,
+                    inside: false,
+                    formatter: function() { return Math.round(this.y); }
+                  }
+                },
+                { 
+                  name: "Total", 
+                  data: totalSeries,
+                  dataLabels: {
+                    enabled: true,
+                    inside: false,
+                    formatter: function() { return Math.round(this.y); }
+                  }
+                }
+              ]
+            });
+            
+            // Create table with swapped rows/columns
+            let tableHTML = '<div class="mb-3">';
+            tableHTML += `<strong>Total Calls: ${totalCalls.toLocaleString('ru-RU')}</strong><br>`;
+            tableHTML += `<strong>Total Chats: ${totalChats.toLocaleString('ru-RU')}</strong><br>`;
+            tableHTML += `<strong>Total Contacts: ${(totalCalls + totalChats).toLocaleString('ru-RU')}</strong><br>`;
+            tableHTML += '</div>';
+            
+            tableHTML += '<table class="table table-bordered">';
+            
+            // Header row with hours
+            tableHTML += '<thead><tr><th>Metric</th>';
+            for (let hour = 0; hour < 24; hour++) {
+              tableHTML += `<th>${hour}:00</th>`;
+            }
+            tableHTML += '</tr></thead>';
+            
+            // Body with metrics as rows
+            tableHTML += '<tbody>';
+            
+            // Calls row
+            tableHTML += '<tr><td>Calls</td>';
+            for (let hour = 0; hour < 24; hour++) {
+              tableHTML += `<td>${hourlyMap[hour].calls}</td>`;
+            }
+            tableHTML += '</tr>';
+            
+            // Chats row
+            tableHTML += '<tr><td>Chats</td>';
+            for (let hour = 0; hour < 24; hour++) {
+              tableHTML += `<td>${hourlyMap[hour].chats}</td>`;
+            }
+            tableHTML += '</tr>';
+            
+            // Total row
+            tableHTML += '<tr><td>Total</td>';
+            for (let hour = 0; hour < 24; hour++) {
+              tableHTML += `<td>${hourlyMap[hour].calls + hourlyMap[hour].chats}</td>`;
+            }
+            tableHTML += '</tr>';
+            
+            tableHTML += '</tbody></table>';
+            $("#data-table-container").html(tableHTML);
+          } else {
+            // Original daily view processing (unchanged)
+            callsData.forEach(item => {
+              const dStr = new Date(item.report_date).toISOString().split("T")[0]; // Format date to YYYY-MM-DD
+              if (!dataMap[dStr]) dataMap[dStr] = { calls: 0, chats: 0, agents: 0 };
+              dataMap[dStr].calls += (item.total_calls || 0);
+              periodTotalCalls += (item.total_calls || 0);
+            });
+            chatsData.forEach(item => {
+              const dStr = new Date(item.report_date).toISOString().split("T")[0]; // Format date to YYYY-MM-DD
+              if (!dataMap[dStr]) dataMap[dStr] = { calls: 0, chats: 0, agents: 0 };
+              dataMap[dStr].chats += (item.total_chats || 0);
+              periodTotalChats += (item.total_chats || 0);
+            });
+            
+            // Add agents data to our dataMap
+            Object.keys(agentsByDay).forEach(dStr => {
+              if (!dataMap[dStr]) dataMap[dStr] = { calls: 0, chats: 0, agents: 0 };
+              dataMap[dStr].agents = agentsByDay[dStr];
+              periodTotalAgents += dataMap[dStr].agents; // Sum total agents
+            });
+            
+            const periodTotal = periodTotalCalls + periodTotalChats;
+            const avgAgentsPerDay = periodTotalAgents / Object.keys(agentsByDay).length || 0;
+            
+            // Добавляем блок с итогами периода
+            let tableHTML = '<div class="mb-3">';
+            tableHTML += `<strong>Total Calls for period: ${periodTotalCalls.toLocaleString('ru-RU')}</strong><br>`;
+            tableHTML += `<strong>Total Chats for period: ${periodTotalChats.toLocaleString('ru-RU')}</strong><br>`;
+            tableHTML += `<strong>Total Contacts for period: ${periodTotal.toLocaleString('ru-RU')}</strong><br>`;
+            tableHTML += `<strong>Avg Agents per day: ${avgAgentsPerDay.toFixed(1)}</strong>`;
+            tableHTML += '</div>';
+            
+            tableHTML += '<table class="table table-bordered">';
+            const categories = Object.keys(dataMap).sort((a, b) => new Date(a) - new Date(b));
+            const callsArray = categories.map(d => dataMap[d].calls);
+            const chatsArray = categories.map(d => dataMap[d].chats);
+            const totalArray = categories.map(d => dataMap[d].calls + dataMap[d].chats);
+            const agentsArray = categories.map(d => dataMap[d].agents || 0); // Get agents count for each day
+            
+            Highcharts.chart("chart-container", {
+              chart: { type: "column" },
+              title: { text: "Total (Daily)" },
+              xAxis: {
+                categories: categories.map(dStr => {
+                  const dateObj = new Date(dStr);
+                  const dd = String(dateObj.getDate()).padStart(2, '0');
+                  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                  const yyyy = dateObj.getFullYear();
+                  return `${dd}.${mm}.${yyyy}`;
+                }),
+                crosshair: true
+              },
+              yAxis: { title: { text: "Value" } },
+              series: [
+                { name: "Calls", data: callsArray, dataLabels: { enabled: true, inside: false, formatter: function() { return this.y; } } },
+                { name: "Chats", data: chatsArray, dataLabels: { enabled: true, inside: false, formatter: function() { return this.y; } } },
+                { name: "Total", data: totalArray, dataLabels: { enabled: true, inside: false, formatter: function() { return this.y; } } },
+                { name: "Agents", data: agentsArray, dataLabels: { enabled: true, inside: false, formatter: function() { return this.y; } } }
+              ]
+            });
+            tableHTML += '<thead><tr><th></th>';
+            categories.forEach(dStr => {
+              const dateObj = new Date(dStr);
+              const dd = String(dateObj.getDate()).padStart(2, '0');
+              const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+              const yyyy = dateObj.getFullYear();
+              tableHTML += `<th>${dd}.${mm}.${yyyy}</th>`;
+            });
+            tableHTML += '</tr></thead>';
+            tableHTML += '<tbody>';
+            tableHTML += '<tr><td>Calls</td>';
+            callsArray.forEach(val => { tableHTML += `<td>${val}</td>`; });
+            tableHTML += '</tr>';
+            tableHTML += '<tr><td>Chats</td>';
+            chatsArray.forEach(val => { tableHTML += `<td>${val}</td>`; });
+            tableHTML += '</tr>';
+            tableHTML += '<tr><td>Total</td>';
+            totalArray.forEach(val => { tableHTML += `<td>${val}</td>`; });
+            tableHTML += '</tr>';
+            tableHTML += '<tr><td>Agents</td>';
+            agentsArray.forEach(val => { tableHTML += `<td>${val}</td>`; });
+            tableHTML += '</tr>';
+            tableHTML += '</tbody></table>';
+            $("#data-table-container").html(tableHTML);
+          }
+        }).fail(function(jqxhr, textStatus, error) {
+          console.error("Request Failed for total:", textStatus, error);
+          $("#data-table-container").html("Error loading Total data");
+        });
+        return;
+      }
+      if (tab === "detailed_daily") {
+        loadDetailedDailyData(startDate, endDate);
+        return;
+      }
+      if (tab === "forecast") {
+        loadForecast(startDate, endDate);
+        return;
+      }
+      if (tab === "forecast_daily") {
+        loadForecastDaily(startDate, endDate);
+        return;
+      }
+      const params = { start_date: startDate, end_date: endDate };
+      
+      if (view === "hourly" && tab === "abandoned") {
+        // Используем эндпоинт для табличных данных
+        $.getJSON(`/hourly/table/data/${tab}`, params)
+          .done(function(data) {
+            // data ожидается как массив объектов с report_date, hour, total_abandoned
+            // Например: 
+            // [ { report_date: "2025-03-19T00:00:00Z", hour: 0, total_abandoned: 6 },
+            //   { report_date: "2025-03-19T00:00:00Z", hour: 1, total_abandoned: 1 }, ... ]
+            
+            // Собираем данные в объект dataMap: ключ — дата в формате "DD/MM/YYYY", значение — объект, где ключи часы 0..23
+            const dataMap = {};
+            data.forEach(item => {
+              const dt = new Date(item.report_date);
+              // Приводим дату к формату DD/MM/YYYY (или измените формат, если нужно)
+              const dayKey = dt.toLocaleDateString("en-GB", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit"
+              });
+              const hour = item.hour;
+              const value = item.total_abandoned || 0;
+              if (!dataMap[dayKey]) {
+                dataMap[dayKey] = {};
+              }
+              dataMap[dayKey][hour] = value;
+            });
+
+            // Сортируем дни по возрастанию
+            const sortedDays = Object.keys(dataMap).sort((a, b) => {
+              const [dayA, monthA, yearA] = a.split("/");
+              const [dayB, monthB, yearB] = b.split("/");
+              return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+            });
+
+            // Генерируем HTML-таблицу
+            let tableHTML = "<table class='table table-bordered'><thead><tr><th>Day</th>";
+            for (let h = 0; h < 24; h++) {
+              tableHTML += `<th>${h}:00</th>`;
+            }
+            tableHTML += "</tr></thead><tbody>";
+            sortedDays.forEach(dayKey => {
+              tableHTML += `<tr><td>${dayKey}</td>`;
+              for (let h = 0; h < 24; h++) {
+                tableHTML += `<td>${dataMap[dayKey][h] || 0}</td>`;
+              }
+              tableHTML += "</tr>";
+            });
+            tableHTML += "</tbody></table>";
+
+            $("#data-table-container").html(tableHTML);
+          })
+          .fail(function(jqxhr, textStatus, error) {
+            console.error("Ошибка загрузки Hourly данных для Abandoned:", textStatus, error);
+            $("#data-table-container").html("Ошибка загрузки данных");
+          });
+      } else {
+        // Для остальных случаев оставляем существующий код:
+        $.getJSON(`/${view}/data/${tab}`, params)
+          .done(function (data) {
+            if (view === "daily") {
+              data.forEach(item => {
+                item.report_date = new Date(item.report_date).toISOString().split("T")[0];
+              });
+            }
+            const seriesData = data.map((item) => {
+              const metric = metricConfig[tab];
+              const value = metric.transform(item[metric.field]);
+              return [view === "hourly" ? item.hour : item.report_date, value];
+            });
+            let displayValue;
+            if (metricConfig[tab].isAverage) {
+              const avg = seriesData.reduce((sum, point) => sum + point[1], 0) / (seriesData.length || 1);
+              displayValue = `Average: ${avg.toFixed(2)}`;
+            } else {
+              const totalSum = seriesData.reduce((sum, point) => sum + point[1], 0);
+              displayValue = `Total: ${totalSum}`;
+            }
+            const customTitle = metricConfig[tab].title;
+
+            const chart = Highcharts.chart("chart-container", {
+              chart: { type: "column" },
+              title: { text: `${customTitle}` },
+              xAxis: {
+                type: "category",
+                title: { text: view === "hourly" ? "Hour" : "Date" },
+                labels: {
+                  formatter: function () {
+                    if (view === "hourly") {
+                      return this.value + ":00";
+                    } else {
+                      const date = new Date(this.value);
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const year = date.getFullYear();
+                      return `${day}.${month}.${year}`;
+                    }
+                  },
+                },
+              },
+              yAxis: { title: { text: "Value" } },
+              exporting: {
+                buttons: {
+                  contextButton: {
+                    menuItems: [
+                      "viewFullscreen",
+                      "printChart",
+                      "separator",
+                      "downloadPNG",
+                      "downloadJPEG",
+                      "downloadPDF",
+                      "downloadSVG",
+                      "separator",
+                      "downloadCSV",
+                      "downloadXLS"
+                    ]
+                  }
+                }
+              },
+              series: [
+                {
+                  name: tab.toUpperCase(),
+                  data: seriesData,
+                  dataLabels: {
+                    enabled: true,
+                    inside: false,
+                    formatter: function () { return Math.round(this.y); }
+                  }
+                },
+              ],
+            });
+            chart.renderer.text(
+              displayValue,
+              chart.legend.group.translateX + chart.legend.group.getBBox().width + 20,
+              chart.legend.group.translateY + chart.legend.group.getBBox().height / 1.5
+            )
+            .attr({ zIndex: 5 })
+            .add();
+            renderDataTable(chart, view, tab);
+          })
+          .fail(function (jqxhr, textStatus, error) {
+            console.error("Request Failed:", textStatus, error);
+          });
+      }
+    }
+
+    // Функция загрузки Detailed Daily
+    function formatDateStr(dateStr) {
+      return dateStr;
+    }
+    function loadDetailedDailyData(startDate, endDate) {
+      $("#chart-container").hide();
+      $("#data-table-container").hide();
+      $("#online-stats").hide();
+      $("#classifiers-container").show();
+      $("#classifiers-container").html("Loading detailed daily...");
+      $.getJSON("/detailed/daily/data", { start_date: startDate, end_date: endDate })
+        .done(function(dataMap) {
+          let html = "";
+          const allDates = Object.keys(dataMap).sort((a,b) => new Date(a) - new Date(b));
+          allDates.forEach(theDate => {
+            const hoursData = dataMap[theDate];
+            const allHours = Object.keys(hoursData).map(h => parseInt(h,10)).sort((a,b)=>a-b);
+            const formattedDate = formatDateStr(theDate);
+            html += `
+              <table class="table table-bordered detailed-daily-table" style="margin-bottom:30px;">
+                <thead>
+                  <tr>
+                    <th>${formattedDate}</th>
+            `;
+            allHours.forEach(h => {
+              html += `<th>${h}:00</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            const rowDefs = [
+              { id: "calls",      label: "Calls"       },
+              { id: "aht",        label: "AHT (min)"   },
+              { id: "sl",         label: "SL (%)"      },
+              { id: "abandoned",  label: "Abandoned"   },
+              { id: "chats",      label: "Chats"       },
+              { id: "frt",        label: "FRT (min)"   },
+              { id: "rt",         label: "RT (min)"    },
+              { id: "agents",     label: "Agents"      }
+            ];
+            rowDefs.forEach(rowDef => {
+              html += `<tr><td><b>${rowDef.label}</b></td>`;
+              allHours.forEach(h => {
+                const obj = hoursData[h] || {};
+                let val = obj[rowDef.id] || 0;
+                if (["aht","frt","rt"].includes(rowDef.id)) {
+                  val = Math.round(val / 60);
+                } else if (rowDef.id === "agents") {
+                  val = Math.round(val);
+                } else if (rowDef.id === "sl") {
+                  val = Math.round(val);
+                }
+                html += `<td>${val}</td>`;
+              });
+              html += `</tr>`;
+            });
+            // New Total row: sum of Calls and Chats
+            html += `<tr><td><b>Total</b></td>`;
+            allHours.forEach(h => {
+              const obj = hoursData[h] || {};
+              const totalVal = (obj["calls"] || 0) + (obj["chats"] || 0);
+              html += `<td>${totalVal}</td>`;
+            });
+            html += `</tr>`;
+            html += `</tbody></table>`;
+          });
+          html = `
+            <button id="download-detailed-daily-btn" class="btn btn-primary mb-3">
+              Download Detailed Daily as Excel
+            </button>
+          ` + html;
+          $("#classifiers-container").html(html);
+          $(".detailed-daily-table").DataTable({
+            paging: false,
+            searching: false,
+            info: false,
+            ordering: false
+          });
+        })
+        .fail(function(jqxhr, textStatus, error) {
+          console.error("Request Failed:", textStatus, error);
+          $("#classifiers-container").html("Error loading detailed daily data");
+        });
+    }
+
+    // Функции для Classifiers
+    function loadClassifiersData(startDate, endDate, classifTab) {
+      $("#chart-container").hide();
+      $("#data-table-container").hide();
+      $("#online-stats").hide();
+      $("#classifiers-container").show();
+      $("#classifiers-container").html("Loading...");
+      $.getJSON("/custom_query/data", {
+          start_date: startDate,
+          end_date: endDate,
+          tab: classifTab
+      })
+      .done(function (data) {
+        if (classifTab === "topics_classif") {
+          handleTopicsView(data);
+        } else if (classifTab === "subtopics_daily") {
+          handleSubtopicsDailyOnly(data);
+        } else if (classifTab === "subtopics_classif") {
+          handleSubtopicsBoth(data);
+        } else {
+          handleDefaultClassifView(data);
+        }
+      })
+      .fail(function (jqxhr, textStatus, error) {
+        console.error("Request Failed:", textStatus, error);
+        $("#classifiers-container").html("Error loading data");
+      });
+    }
+
+    function handleTopicsView(data) {
+      const pivot = {};
+      const topicSet = new Set();
+      const dateSet = new Set();
+      data.forEach(row => {
+        let cat = row.category_or_name || "";
+        if (!cat) return;
+        cat = cat.replace(/m10 new \/ /gi, "").trim();
+        if (!cat) return;
+        const splitIndex = cat.indexOf(" / ");
+        const topic = splitIndex > -1 ? cat.slice(0, splitIndex) : cat;
+        const dt = row.report_date;
+        if (!dt || isNaN(new Date(dt))) return;
+        topicSet.add(topic);
+        dateSet.add(dt);
+        if (!pivot[topic]) pivot[topic] = {};
+        pivot[topic][dt] = (pivot[topic][dt] || 0) + (row.total || 0);
+      });
+      const allTopics = Array.from(topicSet).sort();
+      const allDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+      
+      let html = '<table id="classifiers-table" class="table table-bordered">';
+      html += "<thead><tr><th>Topic</th><th>Total</th><th>Ratio (%)</th>";
+      allDates.forEach(date => {
+        const formattedDate = new Date(date).toLocaleDateString("en-GB", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        });
+        html += `<th>${formattedDate}</th>`;
+      });
+      html += "</tr></thead><tbody>";
+      allTopics.forEach(topic => {
+        let rowTotal = 0;
+        allDates.forEach(date => {
+          rowTotal += pivot[topic][date] || 0;
+        });
+        const grandTotal = allTopics.reduce((sum, t) => {
+          return sum + allDates.reduce((s, d) => s + (pivot[t][d] || 0), 0);
+        }, 0);
+        const ratio = grandTotal > 0
+          ? ((rowTotal / grandTotal) * 100).toFixed(2)
+          : 0;
+        html += `<tr><td>${topic}</td><td>${rowTotal}</td><td>${ratio}%</td>`;
+        allDates.forEach(date => {
+          const val = pivot[topic][date] || 0;
+          html += `<td>${val}</td>`;
+        });
+        html += "</tr>";
+      });
+      html += "</tbody></table>";
+      
+      $("#classifiers-container").html(html);
+      $("#classifiers-table").DataTable({ paging: true, searching: true, info: true, ordering: true });
+      $("#classifiers-container").prepend(`
+        <button id="download-classifiers-btn" class="btn btn-primary mb-2">Download Classifiers as Excel</button>
+      `);
+    }
+
+    function handleDefaultClassifView(data) {
+      const pivot = {};
+      const categorySet = new Set();
+      const dateSet = new Set();
+      data.forEach(row => {
+        let cat = row.category_or_name || "";
+        if (!cat) return;
+        cat = cat.replace(/m10 new \/ /gi, "").trim();
+        if (!cat) return;
+        const dt = row.report_date;
+        if (!dt || isNaN(new Date(dt))) return;
+        categorySet.add(cat);
+        dateSet.add(dt);
+        if (!pivot[cat]) pivot[cat] = {};
+        pivot[cat][dt] = (pivot[cat][dt] || 0) + (row.total || 0);
+      });
+      const allCategories = Array.from(categorySet).sort();
+      const allDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+      let html = '<table id="classifiers-table" class="table table-bordered">';
+      html += "<thead><tr><th>Topic</th><th>Subtopic</th>";
+      allDates.forEach(date => {
+        const formattedDate = new Date(date).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+        html += `<th>${formattedDate}</th>`;
+      });
+      html += "<th>Total</th></tr></thead><tbody>";
+      allCategories.forEach(cat => {
+        const splitIndex = cat.indexOf(" / ");
+        const topic = splitIndex > -1 ? cat.slice(0, splitIndex) : cat;
+        const subtopic = splitIndex > -1 ? cat.slice(splitIndex + 3) : "";
+        let rowTotal = 0;
+        dateSet.forEach(date => {
+          rowTotal += (pivot[cat][date] || 0);
+        });
+        html += `<tr><td>${topic}</td><td>${subtopic}</td>`;
+        const sortedDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+        sortedDates.forEach(d => {
+          const val = pivot[cat][d] || 0;
+          html += `<td>${val}</td>`;
+        });
+        html += `<td>${rowTotal}</td></tr>`;
+      });
+      html += "</tbody></table>";
+      $("#classifiers-container").html(html);
+      $("#classifiers-table").DataTable({ paging: true, searching: true, info: true, ordering: true });
+      $("#classifiers-container").prepend(`
+        <button id="download-classifiers-btn" class="btn btn-primary mb-2">Download Classifiers as Excel</button>
+      `);
+    }
+
+    function handleSubtopicsBoth(data) {
+      let html = `
+        <div id="subtopics-daily-section">
+          <h4>Subtopics (Daily)</h4>
+        </div>
+        <div id="subtopics-bytopics-section">
+          <h4>Subtopics (by Topics)</h4>
+        </div>
+      `;
+      $("#classifiers-container").html(html);
+      handleSubtopicsDailyViewCombined(data);
+      handleSubtopicsByTopicsViewCombined(data);
+    }
+
+    function handleSubtopicsDailyViewCombined(data) {
+      const dailySubtopicsByTopic = {};
+      const topicSet = new Set();
+      data.forEach(row => {
+        let cat = row.category_or_name || "";
+        if (!cat) return;
+        cat = cat.replace(/m10 new \/ /gi, "").trim();
+        if (!cat) return;
+        const splitIndex = cat.indexOf(" / ");
+        const topic = splitIndex > -1 ? cat.slice(0, splitIndex) : cat;
+        const subtopic = splitIndex > -1 ? cat.slice(splitIndex + 3) : topic;
+        const date = row.report_date;
+        if (!dailySubtopicsByTopic[topic]) {
+          dailySubtopicsByTopic[topic] = {};
+        }
+        if (!dailySubtopicsByTopic[topic][subtopic]) {
+          dailySubtopicsByTopic[topic][subtopic] = {};
+        }
+        dailySubtopicsByTopic[topic][subtopic][date] =
+          (dailySubtopicsByTopic[topic][subtopic][date] || 0) + (row.total || 0);
+        topicSet.add(topic);
+      });
+      const allTopics = Array.from(topicSet).sort();
+      let html = `<label><b>Select Topic (daily):</b></label>
+        <select id="subtopics-daily-topic-select" class="form-select mb-3">
+          <option value="">-- Choose a topic --</option>`;
+      allTopics.forEach(t => {
+        html += `<option value="${t}">${t}</option>`;
+      });
+      html += `</select>
+        <div id="subtopics-daily-table-container"></div>`;
+      $("#subtopics-daily-section").append(html);
+      $(document).off("change", "#subtopics-daily-topic-select").on("change", "#subtopics-daily-topic-select", function(){
+        const chosenTopic = $(this).val();
+        if (!chosenTopic) {
+          $("#subtopics-daily-table-container").html("");
+          return;
+        }
+        renderSubtopicsDailyTable(chosenTopic, dailySubtopicsByTopic[chosenTopic]);
+      });
+    }
+
+    function renderSubtopicsDailyTable(topic, dailyData) {
+      let dateSet = new Set();
+      Object.values(dailyData).forEach(subtopicData => {
+        Object.keys(subtopicData).forEach(date => {
+          dateSet.add(date);
+        });
+      });
+      const allDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+      let html = `<h5>Subtopics (daily) for topic: <strong>${topic}</strong></h5>
+        <table id="subtopics-daily-table" class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Subtopic</th>`;
+      allDates.forEach(date => {
+        let formattedDate = new Date(date).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        html += `<th>${formattedDate}</th>`;
+      });
+      html += `<th>Total</th></tr></thead><tbody>`;
+      const subtopics = Object.keys(dailyData).sort();
+      subtopics.forEach(sub => {
+        const subData = dailyData[sub];
+        const displaySub = sub.trim() ? sub : topic;
+        let rowTotal = 0;
+        html += `<tr><td>${displaySub}</td>`;
+        allDates.forEach(date => {
+          let val = subData[date] || 0;
+          rowTotal += val;
+          html += `<td>${val}</td>`;
+        });
+        html += `<td>${rowTotal}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+      $("#subtopics-daily-table-container").html(html);
+      $("#subtopics-daily-table").DataTable({
+        paging: true,
+        searching: true,
+        info: true,
+        ordering: true
+      });
+      $("#subtopics-daily-table-container").prepend(`
+        <button id="download-subtopics-daily-btn" class="btn btn-primary mb-2">
+          Download Subtopics (daily) as Excel
+        </button>
+      `);
+    }
+
+    function handleSubtopicsByTopicsViewCombined(data) {
+      const subtopicsByTopic = {};
+      const topicSet = new Set();
+      data.forEach(row => {
+        let cat = row.category_or_name || "";
+        if (!cat) return;
+        cat = cat.replace(/m10 new \/ /gi, "").trim();
+        if (!cat) return;
+        const splitIndex = cat.indexOf(" / ");
+        const topic = splitIndex > -1 ? cat.slice(0, splitIndex) : cat;
+        const subtopic = splitIndex > -1 ? cat.slice(splitIndex + 3) : topic;
+        if (!subtopicsByTopic[topic]) subtopicsByTopic[topic] = {};
+        if (!subtopicsByTopic[topic][subtopic]) {
+          subtopicsByTopic[topic][subtopic] = { total: 0, calls: 0, chats: 0 };
+        }
+        subtopicsByTopic[topic][subtopic].total += (row.total || 0);
+        // Use the source field to assign totals to calls or chats
+        if (row.source === 'chat') {
+          subtopicsByTopic[topic][subtopic].chats += (row.total || 0);
+        } else {
+          subtopicsByTopic[topic][subtopic].calls += (row.total || 0);
+        }
+        topicSet.add(topic);
+      });
+      const allTopics = Array.from(topicSet).sort();
+      let html = `<label><b>Select Topic (by Topics):</b></label>
+        <select id="subtopics-bytopics-topic-select" class="form-select mb-3">
+          <option value="">-- Choose a topic --</option>`;
+      allTopics.forEach(t => {
+        html += `<option value="${t}">${t}</option>`;
+      });
+      html += `</select>
+        <div id="subtopics-bytopics-table-container"></div>`;
+      $("#subtopics-bytopics-section").append(html);
+      
+      $(document).off("change", "#subtopics-bytopics-topic-select").on("change", "#subtopics-bytopics-topic-select", function(){
+        const that = $(this);
+        setTimeout(function(){
+            const chosenTopic = that.val();
+            if (!chosenTopic) {
+                $("#subtopics-bytopics-table-container").html("");
+                return;
+            }
+            renderSubtopicsTable(chosenTopic, subtopicsByTopic[chosenTopic]);
+        }, 100); // задержка в 100 мс
+      });
+    }
+
+    function renderSubtopicsTable(topic, subtopicsMap) {
+      let grandTotal = 0, grandCalls = 0, grandChats = 0;
+      Object.keys(subtopicsMap).forEach(sub => {
+        grandTotal += subtopicsMap[sub].total;
+        grandCalls += subtopicsMap[sub].calls;
+        grandChats += subtopicsMap[sub].chats;
+      });
+      let html = `
+        <h5>Subtopics (by Topics) for topic: <strong>${topic}</strong></h5>
+        <table id="subtopics-table" class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Subtopic</th>
+              <th>Total</th>
+              <th>Ratio (%)</th>
+              <th>Calls</th>
+              <th>Chats</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      const allSubs = Object.keys(subtopicsMap).sort();
+      allSubs.forEach(sub => {
+        const data = subtopicsMap[sub];
+        const displaySub = sub.trim() ? sub : topic;
+        let ratioPercent = grandTotal > 0 ? (data.total / grandTotal) * 100 : 0;
+        const ratioStr = ratioPercent.toFixed(1).replace(".", ",") + "%";
+        html += `
+          <tr>
+            <td>${displaySub}</td>
+            <td>${data.total}</td>
+            <td>${ratioStr}</td>
+            <td>${data.calls}</td>
+            <td>${data.chats}</td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      $("#subtopics-bytopics-table-container").html(html);
+      $("#subtopics-table").DataTable({
+        paging: true,
+        searching: true,
+        info: true,
+        ordering: true
+      });
+      $("#subtopics-bytopics-table-container").prepend(`
+        <button id="download-subtopics-btn" class="btn btn-primary mb-2">
+          Download Subtopics (by Topics) as Excel
+        </button>
+      `);
+    }
+
+    function handleSubtopicsDailyOnly(data) {
+      let html = `<div id="subtopics-daily-only-section">
+          <h4>Subtopics (daily)</h4>
+        </div>`;
+      $("#classifiers-container").html(html);
+      const dailySubtopicsByTopic = {};
+      const topicSet = new Set();
+      data.forEach(row => {
+        let cat = row.category_or_name || "";
+        if (!cat) return;
+        cat = cat.replace(/m10 new \/ /gi, "").trim();
+        if (!cat) return;
+        const splitIndex = cat.indexOf(" / ");
+        const topic = splitIndex > -1 ? cat.slice(0, splitIndex) : cat;
+        const subtopic = splitIndex > -1 ? cat.slice(splitIndex + 3) : "";
+        const date = row.report_date;
+        if (!dailySubtopicsByTopic[topic]) {
+          dailySubtopicsByTopic[topic] = {};
+        }
+        if (!dailySubtopicsByTopic[topic][subtopic]) {
+          dailySubtopicsByTopic[topic][subtopic] = {};
+        }
+        dailySubtopicsByTopic[topic][subtopic][date] =
+          (dailySubtopicsByTopic[topic][subtopic][date] || 0) + (row.total || 0);
+        topicSet.add(topic);
+      });
+      const allTopics = Array.from(topicSet).sort();
+      let selectHtml = `<label><b>Select Topic (daily):</b></label>
+        <select id="subtopics-daily-only-topic-select" class="form-select mb-3">
+          <option value="">-- Choose a topic --</option>`;
+      allTopics.forEach(t => {
+        selectHtml += `<option value="${t}">${t}</option>`;
+      });
+      selectHtml += `</select>
+        <div id="subtopics-daily-only-table-container"></div>`;
+      $("#subtopics-daily-only-section").append(selectHtml);
+      $(document).off("change", "#subtopics-daily-only-topic-select").on("change", "#subtopics-daily-only-topic-select", function(){
+         const chosenTopic = $(this).val();
+         if (!chosenTopic) {
+           $("#subtopics-daily-only-table-container").html("");
+           return;
+         }
+         renderSubtopicsDailyTable(chosenTopic, dailySubtopicsByTopic[chosenTopic]);
+      });
+    }
+
+    // Обработчики кликов
+    $(document).ready(function () {
+      const today = new Date().toISOString().split("T")[0];
+      $("#start-date").val(today);
+      $("#end-date").val(today);
+
+      // Для стандартных метрик:
+      $("#metrics-default .tab-link").on("click", function () {
+        $("#metrics-default .tab-link").removeClass("active");
+        $(this).addClass("active");
+        const tab = $(this).data("tab");
+        const sD = $("#start-date").val();
+        const eD = $("#end-date").val();
+        loadChartData(currentView, tab, sD, eD);
+      });
+
+      // Для Classifiers:
+      $("#metrics-classifiers .tab-link").on("click", function () {
+        $("#metrics-classifiers .tab-link").removeClass("active");
+        $(this).addClass("active");
+        const tab = $(this).data("tab");
+        const sD = $("#start-date").val();
+        const eD = $("#end-date").val();
+        loadClassifiersData(sD, eD, tab);
+      });
+
+      $("#apply-filters").on("click", function () {
+        // Modified: Use the active tab from metrics-default or metrics-classifiers
+        let activeTab = $("#metrics-default .tab-link.active, #metrics-classifiers .tab-link.active");
+        
+        // If no active tab is found, default to 'calls'
+        if (activeTab.length === 0) {
+          activeTab = $("#metrics-default .tab-link[data-tab='calls']");
+          activeTab.addClass('active'); // Ensure 'calls' tab is active
+        }
+        
+        const isClassifiersMetric = activeTab.closest("#metrics-classifiers").length > 0 || 
+                                   activeTab.data("tab") === "subtopics_classif" || 
+                                   activeTab.data("tab") === "topics_classif";
+        const tab = activeTab.data("tab");
+        const sD = $("#start-date").val();
+        const eD = $("#end-date").val();
+    
+        if ($("#view-online").hasClass("active")) {
+            loadOnlineData();
+        } else if ($("#view-classifiers").hasClass("active") || isClassifiersMetric) {
+            loadClassifiersData(sD, eD, tab);
+        } else {
+            loadChartData(currentView, tab, sD, eD);
+        }
+    });
+
+      $("#view-daily").on("click", function () {
+        if (onlineInterval) {
+          clearInterval(onlineInterval);
+          onlineInterval = null;
+        }
+        $("#start-date, #end-date, label[for='start-date'], label[for='end-date'], #apply-filters").show();
+        $("#online-stats, #classifiers-container").hide();
+        $("#chart-container, #data-table-container").show();
+        $("#metrics-default").show();
+        // В Daily режиме показываем все метрики:
+        $("#metrics-default a[data-tab='detailed_daily']").show();
+        $("#metrics-default a[data-tab='forecast']").show();
+        $("#metrics-default a[data-tab='forecast_daily']").show();
+        $("#metrics-classifiers").hide();
+        currentView = "daily";
+        $(this).addClass("active");
+        $("#view-hourly, #view-online, #view-classifiers").removeClass("active");
+        // Используем уже выбранную метрику (если она не сброшена)
+        let activeTab = $("#metrics-default .tab-link.active");
+        if (activeTab.length === 0) {
+          activeTab = $("#metrics-default .tab-link[data-tab='calls']");
+          activeTab.addClass('active');
+        }
+        const tab = activeTab.data("tab");
+        const sD = $("#start-date").val();
+        const eD = $("#end-date").val();
+        loadChartData(currentView, tab, sD, eD);
+      });
+
+      $("#view-hourly").on("click", function () {
+        if (onlineInterval) {
+          clearInterval(onlineInterval);
+          onlineInterval = null;
+        }
+        $("#start-date, #end-date, label[for='start-date'], label[for='end-date'], #apply-filters").show();
+        $("#online-stats, #classifiers-container").hide();
+        $("#chart-container, #data-table-container").show();
+        $("#metrics-default").show();
+        // Скрываем недоступные метрики:
+        $("#metrics-default a[data-tab='detailed_daily']").hide();
+        $("#metrics-default a[data-tab='forecast']").hide();
+        $("#metrics-default a[data-tab='forecast_daily']").hide();
+        $("#metrics-classifiers").hide();
+        currentView = "hourly";
+        $(this).addClass("active");
+        $("#view-daily, #view-online, #view-classifiers").removeClass("active");
+        const activeTab = $("#metrics-default .tab-link.active").data("tab");
+        if (activeTab === "detailed_daily" || activeTab === "forecast" || activeTab === "forecast_daily") {
+          $("#metrics-default .tab-link").removeClass("active");
+          $("#metrics-default .tab-link[data-tab='calls']").addClass("active");
+          loadChartData(currentView, "calls", $("#start-date").val(), $("#end-date").val());
+        } else {
+          loadChartData(currentView, activeTab, $("#start-date").val(), $("#end-date").val());
+        }
+      });
+
+      $("#view-classifiers").on("click", function () {
+        if (onlineInterval) {
+          clearInterval(onlineInterval);
+          onlineInterval = null;
+        }
+        $(this).addClass("active");
+        $("#view-daily, #view-hourly, #view-online").removeClass("active");
+        $("#start-date, #end-date, label[for='start-date'], label[for='end-date'], #apply-filters").show();
+        $("#metrics-default").hide();
+        $("#metrics-classifiers").show();
+        
+        let activeClassif = $("#metrics-classifiers .tab-link.active");
+        if(activeClassif.length === 0){
+            $("#metrics-classifiers .tab-link").removeClass("active");
+            $("#metrics-classifiers .tab-link[data-tab='call_classif']").addClass("active");
+            activeClassif = $("#metrics-classifiers .tab-link[data-tab='call_classif']");
+        }
+        
+        const classifTab = activeClassif.data("tab");
+        const sD = $("#start-date").val();
+        const eD = $("#end-date").val();
+        loadClassifiersData(sD, eD, classifTab);
+      });
+
+      $("#view-online").on("click", function () {
+          $(this).addClass("active");
+          $("#view-daily, #view-hourly, #view-classifiers").removeClass("active");
+          loadOnlineData();
+          $("#metrics-default").show();
+          $("#metrics-classifiers").hide();
+      });
+
+      // Выгрузка Classifiers
+      $(document).on("click", "#download-classifiers-btn", function () {
+        const tableData = $("#classifiers-table").DataTable().data().toArray();
+        const headers = $("#classifiers-table thead th").map(function() { return $(this).text(); }).get();
+        const dataForExcel = [headers, ...tableData];
+        const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Classifiers");
+        XLSX.writeFile(wb, "classifiers_data.xlsx");
+      });
+
+      $(document).on("click", "#download-subtopics-btn", function() {
+        const tableData = $("#subtopics-table").DataTable().data().toArray();
+        const headers = $("#subtopics-table thead th").map(function() { return $(this).text(); }).get();
+        const dataForExcel = [headers, ...tableData];
+        const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Subtopics");
+        XLSX.writeFile(wb, "subtopics_data.xlsx");
+      });
+
+      $(document).on("click", "#download-subtopics-daily-btn", function() {
+        const tableData = $("#subtopics-daily-table").DataTable().data().toArray();
+        const headers = $("#subtopics-daily-table thead th").map(function() { return $(this).text(); }).get();
+        const dataForExcel = [headers, ...tableData];
+        const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Subtopics Daily");
+        XLSX.writeFile(wb, "subtopics_daily_data.xlsx");
+      });
+
+      async function exportDetailedDailyExcel() {
+        let allData = [];
+        $(".detailed-daily-table").each(function() {
+          let tableArray = [];
+          $(this).find('tr').each(function() {
+            let rowData = [];
+            $(this).find('th, td').each(function() {
+              rowData.push($(this).text().trim());
+            });
+            tableArray.push(rowData);
+          });
+          allData = allData.concat(tableArray, [[""]]);
+        });
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Detailed Daily');
+        allData.forEach((rowData, rowIndex) => {
+          const row = worksheet.getRow(rowIndex + 1);
+          rowData.forEach((cellValue, colIndex) => {
+            const cell = row.getCell(colIndex + 1);
+            cell.value = cellValue;
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+          });
+        });
+        const buffer = await workbook.xlsx.writeBuffer();
+        document.body.removeChild(a);
+      }
+
+      $(document).on("click", "#download-detailed-daily-btn", function() {
+        exportDetailedDailyExcel();
+      });
+
+      // CHANGE: Remove this code that selects Call Classification by default
+      // const defaultTab = "call_classif";
+      // $(".tab-link[data-tab='" + defaultTab + "']").click();
+      
+      // REPLACE WITH: Set Daily view and Calls tab as default on page load
+      $("#view-daily").addClass("active");
+      $("#metrics-default .tab-link[data-tab='calls']").addClass("active");
+      currentView = "daily";
+      loadChartData("daily", "calls", $("#start-date").val(), $("#end-date").val());
+    });
+
+    function loadOnlineData() {
+      console.log("loadOnlineData invoked");
+      $("#chart-container").hide();
+      $("#data-table-container").hide();
+      $("#classifiers-container").hide();
+      $("#online-stats").show();
+      $("#start-date").hide();
+      $("#end-date").hide();
+      $("label[for='start-date']").hide();
+      $("label[for='end-date']").hide();
+      $("#apply-filters").hide();
+      if (onlineInterval) { clearInterval(onlineInterval); }
+      fetchOnlineStats();
+      onlineInterval = setInterval(fetchOnlineStats, 3000);
+    }
+
+    function fetchOnlineStats() {
+      $.getJSON("/online/data", function(data) {
+        $("#online-calls").text(data.calls || 0);
+        $("#online-abandoned").text(data.abandoned || 0);
+        $("#online-aht").text(formatTime(data.aht || 0));
+        $("#online-sl").text(data.sl || 0);
+        $("#online-chats").text(data.chats || 0);
+        $("#online-frt").text(formatTime(data.frt || 0));
+        $("#online-rt").text(formatTime(data.rt || 0));
+        $("#online-waiting").text(data.waiting_calls || 0);
+        $("#online-active").text(data.active_chats || 0);
+      }).fail(function(jqxhr, textStatus, error) {
+        console.error("Failed to load online data:", textStatus, error);
+      });
+    }
+
+    function formatTime(seconds) {
+      const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+      const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+      const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    // New: Allow selecting a single column by clicking a cell
+    document.addEventListener("DOMContentLoaded", function() {
+  document.querySelectorAll("table").forEach(function(table){
+    let lastSelectedCol = null;
+    
+    table.addEventListener("click", function(e) {
+      const cell = e.target.closest("td, th");
+      if (!cell) return;
+      
+      const colIndex = Array.from(cell.parentNode.children).indexOf(cell);
+      
+      // If clicking same column again, remove highlight
+      if (lastSelectedCol === colIndex) {
+        table.querySelectorAll("td, th").forEach(td => td.classList.remove("selectable"));
+        lastSelectedCol = null;
+        return;
+      }
+      
+      // Update highlight
+      table.querySelectorAll("td, th").forEach(td => td.classList.remove("selectable"));
+      table.querySelectorAll("tr").forEach(row => {
+        const targetCell = row.children[colIndex];
+        if (targetCell) targetCell.classList.add("selectable");
+      });
+      
+      lastSelectedCol = colIndex;
+    });
+  });
+});
+
+    // Updated column selection handler
+    document.addEventListener("DOMContentLoaded", function() {
+      // Add handler to all tables that are rendered dynamically
+      $(document).on("click", "table td, table th", function(e) {
+        const table = $(this).closest('table');
+        const colIndex = $(this).index();
+        
+        // Remove highlight from all cells
+        table.find('td, th').removeClass('selectable');
+        
+        // Add highlight only to cells in clicked column
+        table.find('tr').each(function() {
+          $(this).find('td, th').eq(colIndex).addClass('selectable');
+        });
+        
+        // Prevent text selection when clicking to highlight column
+        if (window.getSelection) {
+          window.getSelection().removeAllRanges();
+        }
+      });
+    });
+
+    // Updated column selection handler with multi-select
+  document.addEventListener("DOMContentLoaded", function() {
+    let lastSelectedIndex = null;
+
+    $(document).on("click", "table td, table th", function(e) {
+      const table = $(this).closest('table');
+      const cell = $(this);
+      const colIndex = cell.index();
+      const rowIndex = cell.parent().index();
+      
+      // If no modifier key is pressed, clear previous selection
+      if (!e.ctrlKey && !e.shiftKey) {
+        table.find('td, th').removeClass('selectable multi-select');
+      }
+
+      if (e.shiftKey && lastSelectedIndex !== null) {
+        // Range selection
+        const cells = table.find('td, th');
+        const start = Math.min(lastSelectedIndex, colIndex);
+        const end = Math.max(lastSelectedIndex, colIndex);
+        
+        cells.each(function() {
+          const idx = $(this).index();
+          if (idx >= start && idx <= end) {
+            $(this).addClass('selectable multi-select');
+          }
+        });
+      } else {
+        // Toggle selection for clicked column
+        table.find('tr').each(function() {
+          const targetCell = $(this).children().eq(colIndex);
+          targetCell.toggleClass('selectable multi-select');
+        });
+        lastSelectedIndex = colIndex;
+      }
+
+      // Prevent text selection when clicking to highlight
+      if (!e.ctrlKey && window.getSelection) {
+        window.getSelection().removeAllRanges();
+      }
+    });
+
+    // Add row selection handler
+    $(document).on("click", "table tr", function(e) {
+      if (e.target.tagName.toLowerCase() === 'td' || e.target.tagName.toLowerCase() === 'th') {
+        if (e.altKey) { // Alt для выделения строк
+          const row = $(this);
+          
+          if (!e.ctrlKey && !e.shiftKey) {
+            row.closest('table').find('td, th').removeClass('selectable multi-select');
+          }
+          
+          if (e.shiftKey && lastSelectedIndex !== null) {
+            const rows = row.closest('table').find('tr');
+            const currentIndex = row.index();
+            const start = Math.min(lastSelectedIndex, currentIndex);
+            const end = Math.max(lastSelectedIndex, currentIndex);
+            
+            rows.slice(start, end + 1).find('td, th').addClass('selectable multi-select');
+          } else {
+            row.find('td, th').toggleClass('selectable multi-select');
+            lastSelectedIndex = row.index();
+          }
+          
+          e.preventDefault();
+          if (!e.ctrlKey && window.getSelection) {
+            window.getSelection().removeAllRanges();
+          }
+        }
+      }
+    });
+  });
+
+  // Theme switching functionality
+// Предположим, вы уже объявили lightChartTheme и darkChartTheme
+document.addEventListener('DOMContentLoaded', function() {
+  const themeToggle = document.getElementById('theme-toggle');
+
+  // Считываем сохранённую тему
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+
+  // При загрузке страницы сразу применяем тему для Highcharts
+  if (savedTheme === 'dark') {
+    Highcharts.setOptions(darkChartTheme);
+  } else {
+    Highcharts.setOptions(lightChartTheme);
+  }
+
+  themeToggle.addEventListener('click', function() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // Меняем data-theme на <html> + сохраняем в localStorage
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+
+    // Подключаем нужную тему к Highcharts
+    if (newTheme === 'dark') {
+      Highcharts.setOptions(darkChartTheme);
+    } else {
+      Highcharts.setOptions(lightChartTheme);
+    }
+
+    // Перерисовываем текущий график:
+    const tab = $(".tab-link.active").data("tab");
+    loadChartData(currentView, tab, $("#start-date").val(), $("#end-date").val());
+  });
+});
+
+    // Add zoom functionality
+    let currentZoom = 100;
+    
+    function zoomIn() {
+      currentZoom += 10;
+      document.body.style.zoom = currentZoom + "%";
+      updateZoomDisplay();
+    }
+    
+    function zoomOut() {
+      currentZoom = Math.max(50, currentZoom - 10);
+      document.body.style.zoom = currentZoom + "%";
+      updateZoomDisplay();
+    }
+    
+    function resetZoom() {
+      currentZoom = 100;
+      document.body.style.zoom = "100%";
+      updateZoomDisplay();
+    }
+
+    // Add keyboard shortcuts for zoom
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey) {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          zoomIn();
+        } else if (e.key === '-') {
+          e.preventDefault();
+          zoomOut();
+        } else if (e.key === '0') {
+          e.preventDefault();
+          resetZoom();
+        }
+      }
+    });
+
+    // 1. Fix Excel export buttons - update the click handlers
+    function exportToExcel(data, filename) {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      XLSX.writeFile(wb, filename);
+    }
+
+    // Add this after existing event handlers
+    $(document).ready(function() {
+      // ...existing ready handlers...
+
+      // Export buttons click handlers
+      $(document).on("click", "#export-excel", function() {
+        const table = $("#data-table-container table").DataTable();
+        const data = table.data().toArray();
+        exportToExcel(data, "dashboard_data.xlsx");
+      });
+      
+      // Update zoom display when zooming
+      function updateZoomDisplay() {
+        $("#zoom-percent").text(currentZoom + "%");
+      }
+
+      function zoomIn() {
+        currentZoom += 10;
+        document.body.style.zoom = currentZoom + "%";
+        updateZoomDisplay();
+      }
+
+      function zoomOut() {
+        currentZoom = Math.max(50, currentZoom - 10);
+        document.body.style.zoom = currentZoom + "%";
+        updateZoomDisplay();
+      }
+
+      function resetZoom() {
+        currentZoom = 100;
+        document.body.style.zoom = "100%";
+        updateZoomDisplay();
+      }
+
+      // 3. Keep selected tab highlighted
+      $("#view-daily, #view-hourly, #view-classifiers, #view-online").on("click", function() {
+        // Remove active class from other view buttons
+        $("#view-daily, #view-hourly, #view-classifiers, #view-online").removeClass("active");
+        // Add active class to clicked button
+        $(this).addClass("active");
+      });
+
+      $(".tab-link").on("click", function() {
+        // Remove active class from other metric buttons in the same group
+        $(this).closest("div").find(".tab-link").removeClass("active");
+        // Add active class to clicked button
+        $(this).addClass("active");
+      });
+    });
+
+// ...existing code...
+
+$(document).ready(function() {
+    // Remove zoom controls in browser version.
+    if (!window.pywebview) {
+        $("#zoom-controls").remove();
+    } else {
+        // In desktop mode, bind CTRL+scroll for zoom
+        $(window).on("wheel", function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                if (e.originalEvent.deltaY < 0) {
+                    zoomIn();
+                } else {
+                    zoomOut();
+                }
+            }
+        });
+        // Override Excel export for desktop via pywebview API
+        $(document).on("click", "#export-excel", function() {
+           const table = $("#data-table-container table").DataTable();
+           const data = table ? table.data().toArray() : [];
+           if(window.pywebview && window.pywebview.api && window.pywebview.api.export_excel){
+              window.pywebview.api.export_excel(data, "dashboard_data.xlsx")
+              .then(function(resp){ console.log("Export success", resp); })
+              .catch(function(err){ console.error("Export error", err); });
+           } else {
+              // fallback if API is not available
+              exportToExcel(data, "dashboard_data.xlsx");
+           }
+        });
+    }
+
+    // ...existing ready handlers...
+});
+
+// Remove duplicated zoom functions from the second ready block
+$(document).ready(function() {
+    // ...existing other ready handlers...
+    // Remove re-binding of zoom controls if not needed for desktop.
+    // ...existing code...
+});    // Desktop mode will use CTRL+scroll so no button clicks needed.
+$(document).ready(function(){
+    // ...existing ready handlers...
+    if(window.pywebview) {
+       $("#refresh-btn").show();
+       $("#refresh-btn").off("click").on("click", function() {
+           location.reload();
+       });
+    }
+    // ...existing ready handlers...
+});
+
+function loadDailyAndHourlyMetrics(startDate, endDate) {
+    $.when(
+        $.getJSON('/daily/data/calls?start_date=' + startDate + '&end_date=' + endDate),
+        $.getJSON('/daily/data/chats?start_date=' + startDate + '&end_date=' + endDate)
+        // ...fetch any other data as needed...
+    ).done(function(callsResp, chatsResp) {
+        // Compute total from callsResp[0] + chatsResp[0]
+        // ...populate charts or tables...
+    });
+}
+
+function loadDetailedDailyData(startDate, endDate) {
+    $.getJSON('/detailed/daily/data?start_date=' + startDate + '&end_date=' + endDate, function(detailedResp){
+        // ...use detailedResp to populate the “Detailed daily” metric...
+    });
+}
+</script>
+</body>
+</html>
